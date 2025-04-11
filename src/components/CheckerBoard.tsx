@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import CheckerPiece from "./CheckerPiece";
@@ -70,10 +71,15 @@ const CheckerBoard = () => {
       const intermediateRow = row + dr;
       const intermediateCol = col + dc;
       
+      // Get the piece at the intermediate position
+      const intermediatePiece = getPieceAtPosition(intermediateRow, intermediateCol);
+      
+      // Fixed jump validation: Check that we're jumping over an opponent's piece
       if (
         jumpRow >= 0 && jumpRow < 4 && jumpCol >= 0 && jumpCol < 8 && // Within board
         !getPieceAtPosition(jumpRow, jumpCol) && // Landing spot is empty
-        getPieceAtPosition(intermediateRow, intermediateCol)?.player !== piece.player // Jumping over opponent
+        intermediatePiece && // There is a piece to jump over
+        intermediatePiece.player !== piece.player // It's an opponent's piece
       ) {
         jumps.push([jumpRow, jumpCol]);
       }
