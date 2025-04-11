@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import CheckerPiece from "./CheckerPiece";
@@ -12,9 +13,10 @@ export type PieceType = {
   position: [number, number]; // [row, col]
 };
 
-// Initial setup with just one piece per player
+// Initial setup with one piece per player
 const initialPieces: PieceType[] = [
   { id: 1, player: 1, isKing: false, position: [3, 1] }, // Player 1 starts with one piece
+  { id: 2, player: 2, isKing: false, position: [0, 6] }, // Player 2 starts with one piece
 ];
 
 const CheckerBoard = () => {
