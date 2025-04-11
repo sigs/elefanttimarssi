@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import CheckerPiece from "./CheckerPiece";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Computer } from "lucide-react";
 
 // Define piece types
 export type PieceType = {
@@ -27,7 +28,8 @@ const CheckerBoard = () => {
   const [mustJump, setMustJump] = useState<boolean>(false);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [winner, setWinner] = useState<1 | 2 | null>(null);
-  const [nextId, setNextId] = useState(2); // For generating unique IDs for new pieces
+  const [nextId, setNextId] = useState(3); // For generating unique IDs for new pieces
+  const [isComputerPlayer, setIsComputerPlayer] = useState<boolean>(false);
 
   // Reset game
   const resetGame = () => {
@@ -38,7 +40,7 @@ const CheckerBoard = () => {
     setMustJump(false);
     setGameOver(false);
     setWinner(null);
-    setNextId(2);
+    setNextId(3);
   };
 
   // Helper to find a piece at a given position
@@ -98,25 +100,6 @@ const CheckerBoard = () => {
     return moves;
   };
 
-  // Check for mandatory jumps for the current player
-  const checkForMandatoryJumps = () => {
-    const playerPieces = pieces.filter(p => p.player === currentPlayer);
-    let hasJump = false;
-    
-    for (const piece of playerPieces) {
-      const moves = calculateValidMoves(piece);
-      if (moves.some(([row, col]) => 
-        Math.abs(row - piece.position[0]) === 2 && Math.abs(col - piece.position[1]) === 2)
-      ) {
-        hasJump = true;
-        break;
-      }
-    }
-    
-    setMustJump(hasJump);
-    return hasJump;
-  };
-
   // Handle piece selection
   const handlePieceSelect = (piece: PieceType) => {
     // Can only select pieces of the current player
@@ -127,14 +110,18 @@ const CheckerBoard = () => {
     // Calculate and show valid moves
     const moves = calculateValidMoves(piece);
     
-    // If there are mandatory jumps, filter to only include jumps
-    if (mustJump) {
-      const jumpMoves = moves.filter(([row, col]) => 
-        Math.abs(row - piece.position[0]) === 2 && Math.abs(col - piece.position[1]) === 2
-      );
+    // Check if any moves are jumps
+    const jumpMoves = moves.filter(([row, col]) => 
+      Math.abs(row - piece.position[0]) === 2 && Math.abs(col - piece.position[1]) === 2
+    );
+    
+    // If there are jumps, only allow jumps
+    if (jumpMoves.length > 0) {
       setValidMoves(jumpMoves);
+      setMustJump(true);
     } else {
       setValidMoves(moves);
+      setMustJump(false);
     }
   };
 
@@ -258,47 +245,10 @@ const CheckerBoard = () => {
     return false;
   };
 
-  // Add computer player piece at start of game
-  useEffect(() => {
-    // Wait a bit before adding the computer's piece for visual effect
-    const timer = setTimeout(() => {
-      if (pieces.length === 1) {
-        setPieces(prev => [
-          ...prev,
-          { id: nextId, player: 2, isKing: false, position: [0, 6] }
-        ]);
-        setNextId(nextId + 1);
-      }
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Check for mandatory jumps at the start of each turn
-  useEffect(() => {
-    if (!gameOver) {
-      checkForMandatoryJumps();
-      
-      // Add simple AI for player 2 (computer)
-      if (currentPlayer === 2) {
-        const timer = setTimeout(() => {
-          makeComputerMove();
-        }, 1000);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [currentPlayer, gameOver]);
-
-  // Check for winner after each move
-  useEffect(() => {
-    if (!gameOver) {
-      checkWinner();
-    }
-  }, [pieces]);
-
   // Simple AI for computer player
   const makeComputerMove = () => {
+    if (currentPlayer !== 2 || gameOver) return;
+    
     const computerPieces = pieces.filter(p => p.player === 2);
     if (computerPieces.length === 0) return;
     
@@ -347,6 +297,24 @@ const CheckerBoard = () => {
       }, 500);
     }
   };
+
+  // Check for winner after each move
+  useEffect(() => {
+    if (!gameOver) {
+      checkWinner();
+    }
+  }, [pieces]);
+
+  // Auto-play computer moves if enabled
+  useEffect(() => {
+    if (isComputerPlayer && currentPlayer === 2 && !gameOver) {
+      const timer = setTimeout(() => {
+        makeComputerMove();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentPlayer, isComputerPlayer, gameOver]);
 
   // Render the board
   const renderBoard = () => {
@@ -398,8 +366,26 @@ const CheckerBoard = () => {
         {renderBoard()}
       </div>
       
-      <div className="flex gap-4 mt-4">
+      <div className="flex flex-col sm:flex-row gap-4 mt-4 items-center">
         <Button variant="outline" onClick={resetGame}>New Game</Button>
+        
+        <div className="flex items-center gap-2">
+          <Checkbox 
+            id="computer-player" 
+            checked={isComputerPlayer} 
+            onCheckedChange={(checked) => setIsComputerPlayer(checked === true)}
+          />
+          <label htmlFor="computer-player" className="text-sm cursor-pointer">
+            Computer plays Player 2
+          </label>
+        </div>
+        
+        {currentPlayer === 2 && !gameOver && !isComputerPlayer && (
+          <Button onClick={makeComputerMove} variant="secondary">
+            <Computer className="mr-2 h-4 w-4" />
+            Make Computer Move
+          </Button>
+        )}
       </div>
     </div>
   );
