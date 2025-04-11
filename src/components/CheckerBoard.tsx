@@ -49,6 +49,11 @@ const CheckerBoard = () => {
     return pieces.find(piece => piece.position[0] === row && piece.position[1] === col);
   };
 
+  // Helper to check if a position is a valid checkerboard square (black square)
+  const isValidCheckerSquare = (row: number, col: number) => {
+    return (row + col) % 2 === 1;
+  };
+
   // Check if a move is valid
   const calculateValidMoves = (piece: PieceType): [number, number][] => {
     if (!piece) return [];
@@ -178,23 +183,30 @@ const CheckerBoard = () => {
       // Create a new piece in the home row
       const newPieceRow = updatedPiece.player === 1 ? 3 : 0;
       
-      // Find an empty spot in the home row
-      let newPieceCol = 0;
-      while (newPieceCol < 8) {
-        if ((newPieceCol % 2 !== newPieceRow % 2) && // Check valid checkerboard position
-            !getPieceAtPosition(newPieceRow, newPieceCol)) {
-          break;
-        }
-        newPieceCol += 1;
+      // Find a corresponding empty spot in the home row
+      // Start with the same column as the promoted piece if it's a valid square
+      let newPieceCol = toCol;
+      
+      // If the column is not a valid checker square, adjust it
+      if (!isValidCheckerSquare(newPieceRow, newPieceCol)) {
+        newPieceCol += 1; // Move to the next column
       }
       
-      // If there's an open spot, add the new piece
-      if (newPieceCol < 8) {
+      // If that spot is occupied or invalid, search for another valid spot
+      let attempts = 0;
+      while (attempts < 8 && (getPieceAtPosition(newPieceRow, newPieceCol % 8) || !isValidCheckerSquare(newPieceRow, newPieceCol % 8))) {
+        newPieceCol = (newPieceCol + 2) % 8; // Try next valid square (skip 2 to stay on same color)
+        attempts += 1;
+      }
+      
+      // If there's an open valid spot, add the new piece
+      if (attempts < 8) {
+        const validCol = newPieceCol % 8;
         const newPiece = {
           id: nextId,
           player: updatedPiece.player,
           isKing: false,
-          position: [newPieceRow, newPieceCol] as [number, number]
+          position: [newPieceRow, validCol] as [number, number]
         };
         newPieces.push(newPiece);
         setNextId(nextId + 1);
@@ -398,3 +410,4 @@ const CheckerBoard = () => {
 };
 
 export default CheckerBoard;
+
