@@ -15,10 +15,10 @@ export type PieceType = {
   position: [number, number]; // [row, col]
 };
 
-// Initial setup with one piece per player
+// Initial setup with one piece per player on valid checkerboard squares
 const initialPieces: PieceType[] = [
-  { id: 1, player: 1, isKing: false, position: [3, 1] }, // Player 1 starts with one piece
-  { id: 2, player: 2, isKing: false, position: [0, 6] }, // Player 2 starts with one piece
+  { id: 1, player: 1, isKing: false, position: [3, 0] }, // Player 1 starts with one piece (bottom row, valid black square)
+  { id: 2, player: 2, isKing: false, position: [0, 1] }, // Player 2 starts with one piece (top row, valid black square)
 ];
 
 const CheckerBoard = () => {
