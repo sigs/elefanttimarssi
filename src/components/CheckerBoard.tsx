@@ -172,10 +172,11 @@ const CheckerBoard = () => {
     // Update position
     updatedPiece.position = [toRow, toCol];
     
-    // Check for promotion (reaching the opposite end)
+    // Check for promotion (reaching the opposite end and not already a king)
     const shouldPromote = 
-      (updatedPiece.player === 1 && toRow === 0) || 
-      (updatedPiece.player === 2 && toRow === 3);
+      !updatedPiece.isKing && // Only promote if not already a king
+      ((updatedPiece.player === 1 && toRow === 0) || 
+      (updatedPiece.player === 2 && toRow === 3));
     
     if (shouldPromote) {
       updatedPiece.isKing = true;
@@ -410,4 +411,3 @@ const CheckerBoard = () => {
 };
 
 export default CheckerBoard;
-
