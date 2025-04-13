@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import CheckerPiece from "./CheckerPiece";
@@ -33,6 +32,7 @@ const CheckerBoard = () => {
   const [nextId, setNextId] = useState(3); // For generating unique IDs for new pieces
   const [isComputerPlayer, setIsComputerPlayer] = useState<boolean>(true); // Set to true by default
   const [searchDepth, setSearchDepth] = useState<number>(5); // Default search depth is 5 plys
+  const [piecesWithJumps, setPiecesWithJumps] = useState<number[]>([]);
 
   // Reset game
   const resetGame = () => {
@@ -44,6 +44,7 @@ const CheckerBoard = () => {
     setGameOver(false);
     setWinner(null);
     setNextId(3);
+    setPiecesWithJumps([]);
   };
 
   // Helper to find a piece at a given position
@@ -118,10 +119,54 @@ const CheckerBoard = () => {
     return moves;
   };
 
+  // Check if any pieces have jump moves available
+  const findPiecesWithJumps = (player: 1 | 2, boardState: PieceType[] = pieces): number[] => {
+    const playerPieces = boardState.filter(p => p.player === player);
+    const piecesWithJumps: number[] = [];
+    
+    playerPieces.forEach(piece => {
+      const moves = calculateValidMoves(piece, boardState);
+      const jumpMoves = moves.filter(([row, col]) => 
+        Math.abs(row - piece.position[0]) === 2 && Math.abs(col - piece.position[1]) === 2
+      );
+      
+      if (jumpMoves.length > 0) {
+        piecesWithJumps.push(piece.id);
+      }
+    });
+    
+    return piecesWithJumps;
+  };
+
+  // Update valid moves whenever current player changes
+  useEffect(() => {
+    if (!gameOver) {
+      const jumpingPieces = findPiecesWithJumps(currentPlayer);
+      setPiecesWithJumps(jumpingPieces);
+      
+      // If there's a selected piece and it doesn't have jumps when jumps are available,
+      // deselect it
+      if (selectedPiece && jumpingPieces.length > 0 && !jumpingPieces.includes(selectedPiece.id)) {
+        setSelectedPiece(null);
+        setValidMoves([]);
+      }
+    }
+  }, [currentPlayer, pieces]);
+
   // Handle piece selection
   const handlePieceSelect = (piece: PieceType) => {
     // Can only select pieces of the current player
     if (piece.player !== currentPlayer || gameOver) return;
+    
+    // If there are pieces with jumps, only allow selecting those pieces
+    if (piecesWithJumps.length > 0 && !piecesWithJumps.includes(piece.id)) {
+      toast({
+        title: "Jump required!",
+        description: "You must make a jump move with another piece.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setSelectedPiece(piece);
     
@@ -276,12 +321,12 @@ const CheckerBoard = () => {
     const player1Pieces = boardState.filter(p => p.player === 1);
     const player2Pieces = boardState.filter(p => p.player === 2);
     
-    // Count pieces with weights (kings are worth more)
+    // Count pieces with weights (UPDATED: kings are worth 1, normal pieces are worth 10)
     let player1Score = player1Pieces.reduce((score, piece) => 
-      score + (piece.isKing ? 3 : 1), 0);
+      score + (piece.isKing ? 1 : 10), 0);
     
     let player2Score = player2Pieces.reduce((score, piece) => 
-      score + (piece.isKing ? 3 : 1), 0);
+      score + (piece.isKing ? 1 : 10), 0);
     
     // Consider position - pieces closer to promotion are worth more
     player1Pieces.forEach(piece => {
@@ -541,6 +586,7 @@ const CheckerBoard = () => {
                 piece={piece}
                 isSelected={selectedPiece?.id === piece.id}
                 onSelect={() => handlePieceSelect(piece)}
+                isHighlighted={piecesWithJumps.includes(piece.id)}
               />
             )}
           </div>
@@ -604,4 +650,3 @@ const CheckerBoard = () => {
 };
 
 export default CheckerBoard;
-
