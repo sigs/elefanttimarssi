@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Computer } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 // Define piece types
 export type PieceType = {
@@ -30,7 +31,8 @@ const CheckerBoard = () => {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [winner, setWinner] = useState<1 | 2 | null>(null);
   const [nextId, setNextId] = useState(3); // For generating unique IDs for new pieces
-  const [isComputerPlayer, setIsComputerPlayer] = useState<boolean>(false);
+  const [isComputerPlayer, setIsComputerPlayer] = useState<boolean>(true); // Set to true by default
+  const [searchDepth, setSearchDepth] = useState<number>(5); // Default search depth is 5 plys
 
   // Reset game
   const resetGame = () => {
@@ -55,7 +57,7 @@ const CheckerBoard = () => {
   };
 
   // Check if a move is valid
-  const calculateValidMoves = (piece: PieceType): [number, number][] => {
+  const calculateValidMoves = (piece: PieceType, boardState: PieceType[] = pieces): [number, number][] => {
     if (!piece) return [];
 
     const [row, col] = piece.position;
@@ -69,6 +71,11 @@ const CheckerBoard = () => {
         ? [[-1, -1], [-1, 1]] // Player 1 moves up
         : [[1, -1], [1, 1]];  // Player 2 moves down
 
+    // Helper to find pieces in the board state
+    const getPieceFromBoardState = (r: number, c: number) => {
+      return boardState.find(p => p.position[0] === r && p.position[1] === c);
+    };
+
     // Check for jumps first
     directions.forEach(([dr, dc]) => {
       const jumpRow = row + dr * 2;
@@ -77,12 +84,12 @@ const CheckerBoard = () => {
       const intermediateCol = col + dc;
       
       // Get the piece at the intermediate position
-      const intermediatePiece = getPieceAtPosition(intermediateRow, intermediateCol);
+      const intermediatePiece = getPieceFromBoardState(intermediateRow, intermediateCol);
       
       // Fixed jump validation: Check that we're jumping over an opponent's piece
       if (
         jumpRow >= 0 && jumpRow < 4 && jumpCol >= 0 && jumpCol < 8 && // Within board
-        !getPieceAtPosition(jumpRow, jumpCol) && // Landing spot is empty
+        !getPieceFromBoardState(jumpRow, jumpCol) && // Landing spot is empty
         intermediatePiece && // There is a piece to jump over
         intermediatePiece.player !== piece.player // It's an opponent's piece
       ) {
@@ -102,7 +109,7 @@ const CheckerBoard = () => {
       
       if (
         newRow >= 0 && newRow < 4 && newCol >= 0 && newCol < 8 && // Within board
-        !getPieceAtPosition(newRow, newCol) // Spot is empty
+        !getPieceFromBoardState(newRow, newCol) // Spot is empty
       ) {
         moves.push([newRow, newCol]);
       }
@@ -228,7 +235,7 @@ const CheckerBoard = () => {
     
     // Check if the player can jump again with the same piece
     if (isJump) {
-      const furtherJumps = calculateValidMoves(updatedPiece).filter(
+      const furtherJumps = calculateValidMoves(updatedPiece, newPieces).filter(
         ([row, col]) => Math.abs(row - updatedPiece.position[0]) === 2
       );
       
@@ -264,56 +271,227 @@ const CheckerBoard = () => {
     return false;
   };
 
-  // Simple AI for computer player
+  // Min-Max algorithm with Alpha-Beta Pruning for AI player
+  const evaluateBoard = (boardState: PieceType[]) => {
+    const player1Pieces = boardState.filter(p => p.player === 1);
+    const player2Pieces = boardState.filter(p => p.player === 2);
+    
+    // Count pieces with weights (kings are worth more)
+    let player1Score = player1Pieces.reduce((score, piece) => 
+      score + (piece.isKing ? 3 : 1), 0);
+    
+    let player2Score = player2Pieces.reduce((score, piece) => 
+      score + (piece.isKing ? 3 : 1), 0);
+    
+    // Consider position - pieces closer to promotion are worth more
+    player1Pieces.forEach(piece => {
+      if (!piece.isKing) {
+        // Player 1 moves up, so row 1 is worth more than row 2, etc.
+        player1Score += (3 - piece.position[0]) * 0.1;
+      }
+    });
+    
+    player2Pieces.forEach(piece => {
+      if (!piece.isKing) {
+        // Player 2 moves down, so row 2 is worth more than row 1, etc.
+        player2Score += piece.position[0] * 0.1;
+      }
+    });
+    
+    // Return the score differential from player2's perspective
+    return player2Score - player1Score;
+  };
+
+  const simulateMove = (piece: PieceType, toRow: number, toCol: number, boardState: PieceType[]): PieceType[] => {
+    // Create a deep copy of the board state
+    let newBoardState = JSON.parse(JSON.stringify(boardState));
+    
+    // Check if the move is a jump
+    const isJump = Math.abs(toRow - piece.position[0]) === 2;
+    
+    // Find the piece in the new board state
+    const pieceIndex = newBoardState.findIndex((p: PieceType) => p.id === piece.id);
+    
+    if (isJump) {
+      // Calculate position of jumped piece
+      const jumpedRow = (piece.position[0] + toRow) / 2;
+      const jumpedCol = (piece.position[1] + toCol) / 2;
+      
+      // Remove the jumped piece
+      newBoardState = newBoardState.filter((p: PieceType) => 
+        !(p.position[0] === jumpedRow && p.position[1] === jumpedCol)
+      );
+    }
+    
+    // Update the piece's position
+    const updatedPiece = { ...newBoardState[pieceIndex] };
+    updatedPiece.position = [toRow, toCol];
+    
+    // Check for promotion
+    const shouldPromote = 
+      !updatedPiece.isKing && 
+      ((updatedPiece.player === 1 && toRow === 0) || 
+       (updatedPiece.player === 2 && toRow === 3));
+    
+    if (shouldPromote) {
+      updatedPiece.isKing = true;
+      // In simulation, we don't add the new piece to simplify
+    }
+    
+    // Update the board state
+    newBoardState[pieceIndex] = updatedPiece;
+    
+    return newBoardState;
+  };
+
+  const minMax = (
+    depth: number,
+    boardState: PieceType[],
+    alpha: number,
+    beta: number,
+    isMaximizingPlayer: boolean,
+    player: 1 | 2
+  ): { score: number; move?: { piece: PieceType; to: [number, number] } } => {
+    // Base case: terminal node or max depth reached
+    if (depth === 0) {
+      return { score: evaluateBoard(boardState) };
+    }
+    
+    const playerPieces = boardState.filter(p => p.player === player);
+    
+    // Check if any player has no pieces left
+    if (playerPieces.length === 0) {
+      return { 
+        score: player === 2 ? -1000 : 1000 // Very high/low score based on who lost
+      };
+    }
+    
+    // Find all possible moves for the current player
+    let allMoves: { piece: PieceType; to: [number, number] }[] = [];
+    let jumpMoves: { piece: PieceType; to: [number, number] }[] = [];
+    
+    // Check for jumps first
+    for (const piece of playerPieces) {
+      const moves = calculateValidMoves(piece, boardState);
+      
+      // Separate jump moves
+      const pieceJumps = moves.filter(
+        ([row, col]) => Math.abs(row - piece.position[0]) === 2
+      );
+      
+      if (pieceJumps.length > 0) {
+        pieceJumps.forEach(move => {
+          jumpMoves.push({ piece, to: move });
+        });
+      } else if (jumpMoves.length === 0) { // Only consider non-jump moves if no jumps are available
+        moves.forEach(move => {
+          allMoves.push({ piece, to: move });
+        });
+      }
+    }
+    
+    // If jumps are available, only consider jumps
+    if (jumpMoves.length > 0) {
+      allMoves = jumpMoves;
+    }
+    
+    // No moves available, this is a loss for the current player
+    if (allMoves.length === 0) {
+      return {
+        score: player === 2 ? -1000 : 1000 // Very high/low score based on who lost
+      };
+    }
+    
+    let bestMove: { piece: PieceType; to: [number, number] } | undefined;
+    
+    if (isMaximizingPlayer) { // Player 2 (AI)
+      let maxEval = -Infinity;
+      
+      for (const move of allMoves) {
+        // Simulate this move
+        const newBoardState = simulateMove(move.piece, move.to[0], move.to[1], boardState);
+        
+        // Recursively evaluate this move
+        const evaluation = minMax(depth - 1, newBoardState, alpha, beta, false, 1).score;
+        
+        if (evaluation > maxEval) {
+          maxEval = evaluation;
+          bestMove = move;
+        }
+        
+        alpha = Math.max(alpha, maxEval);
+        if (beta <= alpha) {
+          break; // Beta cutoff
+        }
+      }
+      
+      return { score: maxEval, move: bestMove };
+    } else { // Player 1 (human)
+      let minEval = Infinity;
+      
+      for (const move of allMoves) {
+        // Simulate this move
+        const newBoardState = simulateMove(move.piece, move.to[0], move.to[1], boardState);
+        
+        // Recursively evaluate this move
+        const evaluation = minMax(depth - 1, newBoardState, alpha, beta, true, 2).score;
+        
+        if (evaluation < minEval) {
+          minEval = evaluation;
+          bestMove = move;
+        }
+        
+        beta = Math.min(beta, minEval);
+        if (beta <= alpha) {
+          break; // Alpha cutoff
+        }
+      }
+      
+      return { score: minEval, move: bestMove };
+    }
+  };
+
+  // Advanced AI for computer player using min-max algorithm
   const makeComputerMove = () => {
     if (currentPlayer !== 2 || gameOver) return;
     
     const computerPieces = pieces.filter(p => p.player === 2);
     if (computerPieces.length === 0) return;
     
-    // First, look for mandatory jumps
-    let jumpingPiece = null;
-    let jumpMove: [number, number] | null = null;
-    
-    for (const piece of computerPieces) {
-      const moves = calculateValidMoves(piece);
-      const jumpMoves = moves.filter(([row, col]) => 
-        Math.abs(row - piece.position[0]) === 2
-      );
-      
-      if (jumpMoves.length > 0) {
-        jumpingPiece = piece;
-        jumpMove = jumpMoves[0];
-        break;
-      }
-    }
-    
-    // If there's a jump, take it
-    if (jumpingPiece && jumpMove) {
-      setSelectedPiece(jumpingPiece);
-      setValidMoves([jumpMove]);
-      setTimeout(() => {
-        movePiece(jumpingPiece!, jumpMove![0], jumpMove![1]);
-      }, 500);
-      return;
-    }
-    
-    // Otherwise, make a regular move
-    const availablePieces = computerPieces.filter(piece => 
-      calculateValidMoves(piece).length > 0
+    // Use min-max with alpha-beta pruning to find the best move
+    const bestMoveResult = minMax(
+      searchDepth, 
+      pieces, 
+      -Infinity, 
+      Infinity, 
+      true, // Maximizing player (AI)
+      2 // Player 2
     );
     
-    if (availablePieces.length > 0) {
-      // Pick a random piece that can move
-      const randomPiece = availablePieces[Math.floor(Math.random() * availablePieces.length)];
-      const moves = calculateValidMoves(randomPiece);
-      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+    if (bestMoveResult.move) {
+      const { piece, to } = bestMoveResult.move;
       
-      setSelectedPiece(randomPiece);
-      setValidMoves([randomMove]);
-      setTimeout(() => {
-        movePiece(randomPiece, randomMove[0], randomMove[1]);
-      }, 500);
+      // Find the actual piece in the current state (not from the simulation)
+      const currentPiece = pieces.find(p => p.id === piece.id);
+      
+      if (currentPiece) {
+        // Show the selected piece and valid move
+        setSelectedPiece(currentPiece);
+        setValidMoves([to]);
+        
+        // Execute the move after a short delay
+        setTimeout(() => {
+          movePiece(currentPiece, to[0], to[1]);
+        }, 500);
+      }
+    }
+  };
+
+  // Handle search depth change
+  const handleSearchDepthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const depth = parseInt(e.target.value);
+    if (!isNaN(depth) && depth > 0 && depth <= 10) {
+      setSearchDepth(depth);
     }
   };
 
@@ -333,7 +511,7 @@ const CheckerBoard = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [currentPlayer, isComputerPlayer, gameOver]);
+  }, [currentPlayer, isComputerPlayer, gameOver, searchDepth]);
 
   // Render the board
   const renderBoard = () => {
@@ -399,6 +577,21 @@ const CheckerBoard = () => {
           </label>
         </div>
         
+        <div className="flex items-center gap-2">
+          <label htmlFor="search-depth" className="text-sm whitespace-nowrap">
+            Search Depth:
+          </label>
+          <Input
+            id="search-depth"
+            type="number"
+            min="1"
+            max="10"
+            className="w-16"
+            value={searchDepth}
+            onChange={handleSearchDepthChange}
+          />
+        </div>
+        
         {currentPlayer === 2 && !gameOver && !isComputerPlayer && (
           <Button onClick={makeComputerMove} variant="secondary">
             <Computer className="mr-2 h-4 w-4" />
@@ -411,3 +604,4 @@ const CheckerBoard = () => {
 };
 
 export default CheckerBoard;
+
