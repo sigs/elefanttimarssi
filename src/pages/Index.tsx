@@ -4,7 +4,7 @@ import CheckerBoard from "@/components/CheckerBoard";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-[url('/jungle-background.jpg')] bg-cover bg-center py-8">
+    <div className="min-h-screen bg-emerald-900 bg-[url('/jungle-background.jpg')] bg-cover bg-center py-8">
       <div className="container mx-auto px-4">
         <header className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-amber-50 mb-2 drop-shadow-md">Elefanttimarssi</h1>

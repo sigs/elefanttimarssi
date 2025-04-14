@@ -225,7 +225,6 @@ const CheckerBoard = () => {
         setNextId(nextId + 1);
         
         toast({
-          title: "Norsu kasvoi aikuiseksi!",
           description: "Koska päivä oli hauska niin, ottivat he mukaan yhden kaverin!",
         });
       }
