@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Computer } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type PieceType = {
   id: number;
@@ -20,6 +21,7 @@ const initialPieces: PieceType[] = [
 ];
 
 const CheckerBoard = () => {
+  const isMobile = useIsMobile();
   const [pieces, setPieces] = useState<PieceType[]>(initialPieces);
   const [selectedPiece, setSelectedPiece] = useState<PieceType | null>(null);
   const [validMoves, setValidMoves] = useState<[number, number][]>([]);
@@ -40,7 +42,6 @@ const CheckerBoard = () => {
     setMustJump(false);
     setGameOver(false);
     setWinner(null);
-    setNextId(3);
     setPiecesWithJumps([]);
   };
 
@@ -489,8 +490,9 @@ const CheckerBoard = () => {
           <div 
             key={`${row}-${col}`}
             className={cn(
-              "aspect-square w-12 sm:w-16 flex items-center justify-center relative",
-              isBlackSquare ? "bg-amber-700/80 bg-[url('/footpath.png')] bg-cover" : "bg-emerald-800/80 bg-[url('/jungle-tile.png')] bg-cover",
+              "aspect-square flex items-center justify-center relative",
+              isMobile ? "w-full" : "w-12 sm:w-16",
+              isBlackSquare ? "bg-amber-700/80 bg-[url('/lovable-uploads/7ea9a18e-6902-4bb4-b35d-229cf745a8d0.png')] bg-cover" : "bg-emerald-800/80 bg-[url('/jungle-tile.png')] bg-cover",
               isValidMove && "bg-green-500/50"
             )}
             onClick={() => handleSquareClick(row, col)}
@@ -522,7 +524,10 @@ const CheckerBoard = () => {
           : `Pelaaja ${currentPlayer}:n vuoro`}
       </h2>
       
-      <div className="grid grid-cols-8 border border-amber-900 shadow-lg rounded-md overflow-hidden">
+      <div className={cn(
+        "grid grid-cols-8 border border-amber-900 shadow-lg rounded-md overflow-hidden",
+        isMobile ? "w-full" : "w-auto"
+      )}>
         {renderBoard()}
       </div>
       

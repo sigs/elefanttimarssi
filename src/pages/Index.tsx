@@ -16,8 +16,8 @@ const Index = () => {
           </p>
         </header>
         
-        <div className="flex justify-center">
-          <div className={`${!isMobile ? 'bg-black/30 p-4 rounded-lg' : ''}`}>
+        <div className="flex justify-center w-full">
+          <div className={`${!isMobile ? 'bg-black/30 p-4 rounded-lg' : 'w-full'}`}>
             <CheckerBoard />
           </div>
         </div>
