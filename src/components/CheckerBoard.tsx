@@ -492,7 +492,7 @@ const CheckerBoard = () => {
             className={cn(
               "aspect-square flex items-center justify-center relative",
               isMobile ? "w-full" : "w-12 sm:w-16",
-              isBlackSquare ? "bg-amber-700/80 bg-[url('/lovable-uploads/7ea9a18e-6902-4bb4-b35d-229cf745a8d0.png')] bg-cover" : "bg-emerald-800/80 bg-[url('/jungle-tile.png')] bg-cover",
+              isBlackSquare ? "bg-amber-700/80 bg-[url('/lovable-uploads/7ea9a18e-6902-4bb4-b35d-229cf745a8d0.png')] bg-cover" : "bg-emerald-800/80 bg-[url('/lovable-uploads/4f1dfca6-bfd1-4716-bcb4-857eb0bebd6b.png')] bg-cover",
               isValidMove && "bg-green-500/50"
             )}
             onClick={() => handleSquareClick(row, col)}
